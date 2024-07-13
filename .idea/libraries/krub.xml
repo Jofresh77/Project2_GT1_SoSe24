@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="krub">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/krub.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
