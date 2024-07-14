@@ -3,6 +3,8 @@ package logic;
 import lenz.htw.krub.world.GraphNode;
 
 public class Helper {
+
+    //return the exact GraphNode the bot is currently on, based on his current position
     public static GraphNode getGraphNode(GraphNode[] graphNodes, float[] pos) {
         GraphNode closestNode = null;
         float minDistanceSquared = Float.MAX_VALUE;
@@ -18,6 +20,7 @@ public class Helper {
         return closestNode;
     }
 
+    // avoid unnecessary sqrt call
     private static float squaredDistance(GraphNode node, float[] pos) {
         float dx = node.x - pos[0];
         float dy = node.y - pos[1];

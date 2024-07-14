@@ -8,6 +8,7 @@ import java.util.*;
 import static logic.Helper.*;
 
 public abstract class Bot {
+    // <editor-fold defaultstate="collapsed" desc="Properties">
     public final int playerId;
     public final int botNr;
     protected final GraphNode[] blankGraph;
@@ -24,6 +25,7 @@ public abstract class Bot {
     private static final float MAX_CHECK_DISTANCE = 0.1f;
     private static final float MAX_CHECK_ANGLE = (float) Math.toRadians(45);
     private static final float DISTANCE_THRESHOLD = 0.01f;
+    // </editor-fold>
 
     public Bot(int playerId, int botNr, float[] position, float[] direction, GraphNode[] blankGraph) {
         this.playerId = playerId;
@@ -37,6 +39,7 @@ public abstract class Bot {
         this.blankGraph = blankGraph;
     }
 
+    // <editor-fold defaultstate="collapsed" desc="goal-definition">
     protected abstract Cluster getRelevantCluster(List<Cluster> clusters, int highestScoreOpponent);
 
     public void setGoal(List<Cluster> clusters, int highestScoreOpponent) {
@@ -47,12 +50,86 @@ public abstract class Bot {
         }
 
         if (isOnGoal(relevantCluster)) {
-            this.goal = getClosestEdgeNode(relevantCluster.nodes());
+            this.goal = getClosestEdgeNode(relevantCluster.nodes()); //try to stay on target cluster's edge
         } else {
-            this.goal = getClosestNode(relevantCluster.nodes());
+            this.goal = getClosestNode(relevantCluster.nodes()); //try to get ASAP to target cluster
         }
     }
 
+    protected boolean isOnGoal(Cluster goal) {
+        GraphNode position = getGraphNode(blankGraph, this.position);
+
+        for (GraphNode node : goal.nodes()) {
+            if (position.equals(node))
+                return true;
+        }
+
+        return false;
+    }
+
+    protected Cluster getLargestCluster(List<Cluster> clusters) {
+        Cluster largest = new Cluster(-1, new ArrayList<>());
+
+        for (Cluster cluster : clusters) {
+            if (cluster.nodes().size() > largest.nodes().size()) {
+                largest = cluster;
+            }
+        }
+
+        return largest;
+    }
+
+    protected GraphNode getClosestNode(List<GraphNode> nodes) {
+        GraphNode closest = null;
+        float minDistance = Float.MAX_VALUE;
+
+        for (GraphNode node : nodes) {
+            float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
+            if (distance < minDistance
+                    && (noBlockersAround(node) || !node.isBlocked())) {
+                closest = node;
+                minDistance = distance;
+            }
+        }
+
+        return closest;
+    }
+
+    protected GraphNode getClosestEdgeNode(List<GraphNode> nodes) {
+        GraphNode closest = null;
+        float minDistance = Float.MAX_VALUE;
+
+        for (GraphNode node : nodes) {
+            float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
+
+            if (isEdgeNode(node)
+                    && distance < minDistance
+                    && (noBlockersAround(node) || !node.isBlocked())) {
+                closest = node;
+                minDistance = distance;
+            }
+        }
+
+        return closest;
+    }
+
+    private boolean isEdgeNode(GraphNode node) {
+        for (GraphNode neighbor : node.getNeighbors()) {
+            if (neighbor.getOwner() != node.getOwner()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // a target-node with blocker neighbors might help the bot to get stuck faster, so we avoid them
+    private boolean noBlockersAround(GraphNode node) {
+        return Arrays.stream(node.getNeighbors()).noneMatch(GraphNode::isBlocked);
+    }
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="obstacle-avoidance">
     public float detectAndAvoidObstacles(GraphNode[] blankGraph) {
         List<GraphNode> blockers = findBlockersInSight(blankGraph);
         if (blockers.isEmpty()) {
@@ -61,6 +138,7 @@ public abstract class Bot {
         return calculateAvoidanceAngle(blockers);
     }
 
+    //Usage of 'Breadth First Search' algorithm to find blockers in front of bot's current direction
     private List<GraphNode> findBlockersInSight(GraphNode[] blankGraph) {
         List<GraphNode> blockers = new ArrayList<>();
         GraphNode currentNode = getGraphNode(blankGraph, position);
@@ -103,8 +181,7 @@ public abstract class Bot {
     }
 
     private boolean isNodeWithinDistance(GraphNode node) {
-        float distance = calculateDistance(position, new float[]{node.getX(), node.getY(), node.getZ()});
-        return distance <= MAX_CHECK_DISTANCE;
+        return calculateDistance(node, position[0], position[1], position[2]) <= MAX_CHECK_DISTANCE;
     }
 
     private float calculateAvoidanceAngle(List<GraphNode> blockers) {
@@ -135,7 +212,22 @@ public abstract class Bot {
 
         return angle * sign;
     }
+    // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="stuck-detection">
+    public void incrementTraveledDistance(float[] oldPos, float[] newPos) {
+        float distance = calculateDistance(oldPos, newPos);
+        totalDistanceTraveled += distance;
+        numUpdates++;
+    }
+
+    public void updateStuckState() {
+        isStuck = totalDistanceTraveled / numUpdates < DISTANCE_THRESHOLD;
+    }
+    // </editor-fold>
+
+    //method is used if a goal has been set up to return the bot's steering angle
+    //based on the angle between bot forward direction vector and to goal-node direction vector
     public float calculateSteeringAngle() {
         float[] directionToTarget = {
                 goal.getPosition()[0] - position[0],
@@ -158,86 +250,5 @@ public abstract class Bot {
         float sign = Math.signum(crossProduct[0] + crossProduct[1] + crossProduct[2]);
 
         return angleRad * sign;
-    }
-
-    public void incrementTraveledDistance(float[] oldPos, float[] newPos) {
-        float distance = calculateDistance(oldPos, newPos);
-        totalDistanceTraveled += distance;
-        numUpdates++;
-    }
-
-    protected boolean isOnGoal(Cluster goal) {
-        GraphNode position = getGraphNode(blankGraph, this.position);
-
-        for (GraphNode node : goal.nodes()) {
-            if (position.equals(node))
-                return true;
-        }
-
-        return false;
-    }
-
-    protected Cluster getLargestCluster(List<Cluster> clusters) {
-        Cluster largest = new Cluster(-1, new ArrayList<>());
-
-        for (Cluster cluster : clusters) {
-            if (cluster.nodes().size() > largest.nodes().size()) {
-                largest = cluster;
-            }
-        }
-
-        return largest;
-    }
-
-    protected GraphNode getClosestNode(List<GraphNode> nodes) {
-        GraphNode closest = null;
-        float minDistance = Float.MAX_VALUE;
-
-        for (GraphNode node : nodes) {
-            float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
-            if (distance < minDistance
-                    && noBlockersAround(node)) {
-                closest = node;
-                minDistance = distance;
-            }
-        }
-
-        return closest;
-    }
-
-    protected GraphNode getClosestEdgeNode(List<GraphNode> nodes) {
-        GraphNode closest = null;
-        float minDistance = Float.MAX_VALUE;
-
-        for (GraphNode node : nodes) {
-            float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
-
-            if (isEdgeNode(node)
-                    && distance < minDistance
-                    && noBlockersAround(node)) {
-                closest = node;
-                minDistance = distance;
-            }
-        }
-
-        return closest;
-    }
-
-    private boolean isEdgeNode(GraphNode node) {
-        for (GraphNode neighbor : node.getNeighbors()) {
-            if (neighbor.getOwner() != node.getOwner()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public void updateStuckState() {
-        isStuck = totalDistanceTraveled / numUpdates < DISTANCE_THRESHOLD;
-    }
-
-    private boolean noBlockersAround(GraphNode node) {
-        return Arrays.stream(node.getNeighbors()).noneMatch(GraphNode::isBlocked);
     }
 }

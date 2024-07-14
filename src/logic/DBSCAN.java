@@ -10,6 +10,7 @@ public class DBSCAN {
     private static final float EPSILON = 0.5f;
     private static final int MIN_PTS = 300;
 
+    //Results are wrapped inside a Record Cluster object to simplify classification
     public static List<Cluster> getClusters(GraphNode[] nodes) {
         List<Cluster> clusters = new ArrayList<>();
         Set<GraphNode> visited = new HashSet<>();

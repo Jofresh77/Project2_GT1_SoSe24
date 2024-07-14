@@ -10,6 +10,7 @@ public class Bot1 extends Bot {
         super(playerId, botNr, position, direction, blankGraph);
     }
 
+    //Bot1 will look for unclaimed region and set up main cluster
     @Override
     protected Cluster getRelevantCluster(List<Cluster> clusters, int ignore) {
         List<Cluster> filteredClusters = clusters.stream()

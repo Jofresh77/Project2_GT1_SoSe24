@@ -7,7 +7,6 @@ import logic.Helper;
 import java.util.Comparator;
 import java.util.List;
 
-import static logic.Helper.calculateDistance;
 import static logic.Helper.getGraphNode;
 
 public class Bot0 extends Bot {
@@ -17,6 +16,8 @@ public class Bot0 extends Bot {
         super(playerId, botNr, position, direction, blankGraph);
     }
 
+    //Bot look for his own color-cluster, more precisely for bot1's color-cluster,
+    // since it aims to expand the base of bot1's work
     @Override
     protected Cluster getRelevantCluster(List<Cluster> clusters, int paramIgnore) {
         List<Cluster> filteredClusters = clusters.stream()
