@@ -50,46 +50,4 @@ public class DBSCAN {
     private static boolean isSimilar(GraphNode a, GraphNode b) {
         return a.getOwner() == b.getOwner() && calculateDistance(a, b) <= EPSILON;
     }
-
-    public static GraphNode computeClusterCentroid(Cluster cluster) {
-        if (cluster == null || cluster.nodes().isEmpty()) {
-            return null;
-        }
-
-        float sumX = 0, sumY = 0, sumZ = 0;
-        for (GraphNode node : cluster.nodes()) {
-            sumX += node.getX();
-            sumY += node.getY();
-            sumZ += node.getZ();
-        }
-
-        int size = cluster.nodes().size();
-        float avgX = sumX / size;
-        float avgY = sumY / size;
-        float avgZ = sumZ / size;
-
-        GraphNode centroid = cluster.nodes().get(0);
-        float minDistance = Float.MAX_VALUE;
-
-        for (GraphNode node : cluster.nodes()) {
-            float distance = calculateDistance(node, avgX, avgY, avgZ);
-            if (distance < minDistance) {
-                minDistance = distance;
-                centroid = node;
-            }
-        }
-
-        return centroid;
-    }
-
-    public static List<GraphNode> computeAllClusterCentroids(List<Cluster> clusters) {
-        List<GraphNode> centroids = new ArrayList<>();
-        for (Cluster cluster : clusters) {
-            GraphNode centroid = computeClusterCentroid(cluster);
-            if (centroid != null) {
-                centroids.add(centroid);
-            }
-        }
-        return centroids;
-    }
 }

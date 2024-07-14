@@ -5,8 +5,6 @@ import logic.Cluster;
 
 import java.util.List;
 
-import static logic.Helper.calculateDistance;
-
 public class Bot1 extends Bot {
     public Bot1(int playerId, int botNr, float[] position, float[] direction, GraphNode[] blankGraph) {
         super(playerId, botNr, position, direction, blankGraph);
@@ -15,7 +13,7 @@ public class Bot1 extends Bot {
     @Override
     protected Cluster getRelevantCluster(List<Cluster> clusters, int ignore) {
         List<Cluster> filteredClusters = clusters.stream()
-                .filter(c -> c.ownership() == playerId)
+                .filter(c -> c.ownership() == -1)
                 .toList();
 
         return getLargestCluster(filteredClusters);

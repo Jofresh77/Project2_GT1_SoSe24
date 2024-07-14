@@ -1,4 +1,3 @@
-import bot.Bot;
 import bot.Bot0;
 import bot.Bot1;
 import bot.Bot2;
@@ -22,11 +21,9 @@ public class Client {
     public List<GraphNode> blockers;
     public List<Cluster> clusters;
 
-    public Bot bot0;
-    public Bot bot1;
-    public Bot bot2;
-
-    private static final float DISTANCE_THRESHOLD = 0.05f;
+    public Bot0 bot0;
+    public Bot1 bot1;
+    public Bot2 bot2;
 
     public Client(String nameNb) {
         net = new NetworkClient(null, "NotAnAI" + nameNb, "It was consciously though");
@@ -42,9 +39,9 @@ public class Client {
             }
         }
 
-        bot0 = new Bot0(id, 0, net.getBotPosition(id, 0), net.getBotDirection(0), blankGraph);
-        bot1 = new Bot1(id, 1, net.getBotPosition(id, 1), net.getBotDirection(1), blankGraph);
-        bot2 = new Bot2(id, 2, net.getBotPosition(id, 2), net.getBotDirection(2), blankGraph);
+        bot0 = new Bot0(id, 0, net.getBotPosition(id, 0).clone(), net.getBotDirection(0), blankGraph);
+        bot1 = new Bot1(id, 1, net.getBotPosition(id, 1).clone(), net.getBotDirection(1), blankGraph);
+        bot2 = new Bot2(id, 2, net.getBotPosition(id, 2).clone(), net.getBotDirection(2), blankGraph);
     }
 
     public static void main(String[] args) {
@@ -83,24 +80,39 @@ public class Client {
                 if (currentTime - lastStuckCheckTime >= 1500) {
                     lastStuckCheckTime = currentTime;
 
-                    updateData(false);
+                    bot0.updateStuckState();
+                    if (bot0.isStuck) {
+                        net.changeMoveDirection(0, (float) (3 * Math.PI) / 4);
+                    } else {
+                        bot0.totalDistanceTraveled = 0;
+                        bot0.numUpdates = 0;
+                    }
 
-                    checkAndTurnIfStuck(bot0);
-                    checkAndTurnIfStuck(bot1);
+                    bot1.updateStuckState();
+                    if (bot1.isStuck) {
+                        net.changeMoveDirection(1, (float) (3 * Math.PI) / 4);
+                    } else {
+                        bot1.totalDistanceTraveled = 0;
+                        bot1.numUpdates = 0;
+                    }
+
+                    updateData(false);
 
                     continue;
                 }
 
-                if (currentTime - lastClusterTime >= 3000) {
+                if (currentTime - lastClusterTime >= 500) {
                     lastClusterTime = currentTime;
 
                     updateData(true);
 
-                    if (bot0.goal != null) {
+                    if (bot0.goal != null
+                            && !bot0.isStuck) {
                         net.changeMoveDirection(0, bot0.calculateSteeringAngle());
                     }
 
-                    if (bot1.goal != null) {
+                    if (bot1.goal != null
+                            && !bot1.isStuck) {
                         net.changeMoveDirection(1, bot1.calculateSteeringAngle());
                     }
 
@@ -127,31 +139,19 @@ public class Client {
             bot2.setGoal(clusters, highestScoreOpponent);
         }
 
-        float[] newBot0Position = net.getBotPosition(id, 0);
-        bot0.position = newBot0Position;
-        bot0.direction = net.getBotDirection(0);
-
-        float[] newBot1Position = net.getBotPosition(id, 1);
-        bot1.position = newBot0Position;
+        float[] newBot1Position = net.getBotPosition(id, 1).clone();
+        bot1.incrementTraveledDistance(bot1.position, newBot1Position);
+        bot1.position = newBot1Position;
         bot1.direction = net.getBotDirection(1);
 
-        float[] newBot2Position = net.getBotPosition(id, 2);
-        bot2.position = newBot0Position;
+        float[] newBot0Position = net.getBotPosition(id, 0).clone();
+        bot0.incrementTraveledDistance(bot0.position, newBot0Position);
+        bot0.position = newBot0Position;
+        bot0.direction = net.getBotDirection(0);
+        bot0.bot1pos = newBot1Position;
+
+        bot2.position = net.getBotPosition(id, 2);
         bot2.direction = net.getBotDirection(2);
-
-
-        bot0.incrementTraveledDistance(newBot0Position);
-        bot1.incrementTraveledDistance(newBot1Position);
-        bot2.incrementTraveledDistance(newBot2Position);
-    }
-
-    private void checkAndTurnIfStuck(Bot bot) {
-        float averageDistance = bot.totalDistanceTraveled / bot.numUpdates;
-        if (averageDistance < DISTANCE_THRESHOLD)
-            net.changeMoveDirection(bot.botNr, (float) Math.PI);
-
-        bot.totalDistanceTraveled = 0;
-        bot.numUpdates = 0;
     }
 
     private int getHighestScoreOpponent() {

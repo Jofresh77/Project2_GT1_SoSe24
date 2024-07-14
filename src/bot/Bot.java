@@ -2,7 +2,6 @@ package bot;
 
 import lenz.htw.krub.world.GraphNode;
 import logic.Cluster;
-import logic.DBSCAN;
 
 import java.util.*;
 
@@ -11,7 +10,7 @@ import static logic.Helper.*;
 public abstract class Bot {
     public final int playerId;
     public final int botNr;
-    private final GraphNode[] blankGraph;
+    protected final GraphNode[] blankGraph;
 
     public float[] position;
     public float[] previousPosition;
@@ -20,9 +19,11 @@ public abstract class Bot {
 
     public float totalDistanceTraveled = 0f;
     public int numUpdates = 0;
+    public boolean isStuck = false;
 
-    private static final float MAX_CHECK_DISTANCE = 0.4f;
+    private static final float MAX_CHECK_DISTANCE = 0.1f;
     private static final float MAX_CHECK_ANGLE = (float) Math.toRadians(45);
+    private static final float DISTANCE_THRESHOLD = 0.01f;
 
     public Bot(int playerId, int botNr, float[] position, float[] direction, GraphNode[] blankGraph) {
         this.playerId = playerId;
@@ -46,7 +47,7 @@ public abstract class Bot {
         }
 
         if (isOnGoal(relevantCluster)) {
-            this.goal = DBSCAN.computeClusterCentroid(relevantCluster);
+            this.goal = getClosestEdgeNode(relevantCluster.nodes());
         } else {
             this.goal = getClosestNode(relevantCluster.nodes());
         }
@@ -55,7 +56,7 @@ public abstract class Bot {
     public float detectAndAvoidObstacles(GraphNode[] blankGraph) {
         List<GraphNode> blockers = findBlockersInSight(blankGraph);
         if (blockers.isEmpty()) {
-            return 0; // No obstacles, no need to avoid
+            return 0;
         }
         return calculateAvoidanceAngle(blockers);
     }
@@ -159,8 +160,9 @@ public abstract class Bot {
         return angleRad * sign;
     }
 
-    public void incrementTraveledDistance(float[] newPosition) {
-        totalDistanceTraveled += calculateDistance(newPosition, position);
+    public void incrementTraveledDistance(float[] oldPos, float[] newPos) {
+        float distance = calculateDistance(oldPos, newPos);
+        totalDistanceTraveled += distance;
         numUpdates++;
     }
 
@@ -193,12 +195,49 @@ public abstract class Bot {
 
         for (GraphNode node : nodes) {
             float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
-            if (distance < minDistance) {
+            if (distance < minDistance
+                    && noBlockersAround(node)) {
                 closest = node;
                 minDistance = distance;
             }
         }
 
         return closest;
+    }
+
+    protected GraphNode getClosestEdgeNode(List<GraphNode> nodes) {
+        GraphNode closest = null;
+        float minDistance = Float.MAX_VALUE;
+
+        for (GraphNode node : nodes) {
+            float distance = calculateDistance(node, this.position[0], this.position[1], this.position[2]);
+
+            if (isEdgeNode(node)
+                    && distance < minDistance
+                    && noBlockersAround(node)) {
+                closest = node;
+                minDistance = distance;
+            }
+        }
+
+        return closest;
+    }
+
+    private boolean isEdgeNode(GraphNode node) {
+        for (GraphNode neighbor : node.getNeighbors()) {
+            if (neighbor.getOwner() != node.getOwner()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void updateStuckState() {
+        isStuck = totalDistanceTraveled / numUpdates < DISTANCE_THRESHOLD;
+    }
+
+    private boolean noBlockersAround(GraphNode node) {
+        return Arrays.stream(node.getNeighbors()).noneMatch(GraphNode::isBlocked);
     }
 }
